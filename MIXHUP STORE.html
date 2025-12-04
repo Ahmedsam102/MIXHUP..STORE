@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MIXHUP STORE - داكن</title>
+<style>
+body { margin:0; font-family:'Tahoma',sans-serif; background:#111; color:#ccc;}
+header{ padding:20px; text-align:center; background:#000; border-bottom:2px solid #ffcc00;}
+header h1{ color:#ffcc00; margin:0;}
+.container{ width:90%; margin:auto; margin-top:20px;}
+.product-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:20px;}
+.product{ background:#1a1a1a; padding:15px; border-radius:10px; border:1px solid #333; position:relative; cursor:pointer;}
+.product img{ width:100%; height:200px; object-fit:cover; border-radius:8px;}
+.title{ font-size:16px; margin:10px 0 5px; font-weight:bold; color:#ffcc00;}
+.price{ font-size:18px; color:#ffcc00; margin-bottom:5px;}
+.price-before{ font-size:14px; color:#aaa; text-decoration:line-through;}
+.colors{ margin-top:5px; display:flex; gap:5px; flex-wrap:wrap;}
+.color-btn{ padding:3px 7px; background:#ffcc00; color:#000; border-radius:5px; cursor:pointer; font-size:12px;}
+.delete-btn{ position:absolute; top:0; right:0; background:#ff4444; color:#000; border:none; border-radius:5px; cursor:pointer; padding:3px 5px; font-size:12px;}
+.edit-btn{ position:absolute; top:0; left:0; background:#44ff44; color:#000; border:none; border-radius:5px; cursor:pointer; padding:3px 5px; font-size:12px;}
+#add-product-btn, #add-category-btn{ position:fixed; top:20px; background:#333; color:#ffcc00; padding:10px; border:none; border-radius:6px; cursor:pointer; z-index:1001; margin-left:10px;}
+#add-product-btn{ right:20px;}
+#add-category-btn{ right:150px;}
+#login-page{ position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); display:flex; justify-content:center; align-items:center; z-index:2000; flex-direction:column;}
+#login-page input{ padding:10px; margin:5px 0; border-radius:5px; border:none; width:250px; background:#222; color:#ccc;}
+#login-page button{ padding:10px 20px; margin-top:10px; border:none; border-radius:5px; background:#333; color:#ffcc00; cursor:pointer; font-weight:bold;}
+.modal{ display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); justify-content:center; align-items:center; z-index:2000;}
+.modal-content{ background:#1a1a1a; padding:20px; border-radius:10px; width:320px; display:flex; flex-direction:column;}
+.modal-content input, .modal-content select, .modal-content textarea{ margin:10px 0; padding:10px; border-radius:5px; border:none; background:#222; color:#ccc;}
+.modal-content button{ padding:10px; margin-top:10px; border:none; border-radius:5px; background:#333; color:#ffcc00; cursor:pointer; font-weight:bold;}
+.category-list-btn{ padding:8px; background:#222; color:#ffcc00; border:1px solid #444; border-radius:6px; cursor:pointer; margin-right:5px;}
+#search-box{ margin-bottom:15px; padding:10px; width:100%; border-radius:5px; border:none; background:#222; color:#ccc;}
+.category-container{ display:inline-block; position:relative; margin-bottom:5px;}
+.category-container .delete-btn{ position:absolute; top:-5px; right:-5px;}
+</style>
+</head>
+<body>
+
+<div id="login-page">
+<h2>تسجيل الدخول</h2>
+<input type="text" id="username" placeholder="اسم المستخدم">
+<input type="password" id="password" placeholder="كلمة السر">
+<button id="login-btn">دخول</button>
+<p style="color:#ffcc00; margin-top:10px; cursor:pointer;" id="register-link">إنشاء حساب جديد</p>
+</div>
+
+<header><h1>MIXHUP STORE</h1></header>
+<div class="container">
+<div id="category-list" style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:15px;"></div>
+<input type="text" id="search-box" placeholder="ابحث عن المنتج بالاسم...">
+<div class="product-grid" id="product-grid"></div>
+</div>
+
+<button id="add-product-btn" style="display:none;">أضف منتج</button> 
+<button id="add-category-btn" style="display:none;">أضف قسم جديد</button>
+
+<div class="modal" id="product-modal">
+<div class="modal-content">
+<h3 id="modal-title">إضافة منتج جديد</h3>
+<input type="text" id="modal-name" placeholder="اسم المنتج">
+<input type="text" id="modal-price-before" placeholder="السعر قبل الخصم">
+<input type="text" id="modal-price" placeholder="السعر بعد الخصم">
+<textarea id="modal-description" placeholder="وصف المنتج"></textarea>
+<div style="display:flex; gap:5px; align-items:center;">
+  <input type="text" id="new-color" placeholder="اكتب اللون هنا">
+  <button type="button" id="add-color-btn">أضف لون</button>
+</div>
+<div id="color-list" style="margin-top:5px; display:flex; gap:5px; flex-wrap:wrap;"></div>
+<input type="file" id="modal-img-file" accept="image/*" multiple>
+<select id="modal-category"></select>
+<button id="save-product">حفظ المنتج</button>
+<button id="close-modal">إغلاق</button>
+</div>
+</div>
+
+<div class="modal" id="category-modal">
+<div class="modal-content">
+<h3>إضافة قسم جديد</h3>
+<input type="text" id="new-category" placeholder="اسم القسم">
+<button id="save-category">حفظ القسم</button>
+<button id="close-category-modal">إغلاق</button>
+</div>
+</div>
+
+<script>
+let users = JSON.parse(localStorage.getItem('users')) || [];
+let products = JSON.parse(localStorage.getItem('products')) || [];
+let categories = JSON.parse(localStorage.getItem('categories')) || [];
+
+const loginPage = document.getElementById('login-page');
+const loginBtn = document.getElementById('login-btn');
+const registerLink = document.getElementById('register-link');
+const productGrid = document.getElementById('product-grid');
+const addBtn = document.getElementById('add-product-btn');
+const addCategoryBtn = document.getElementById('add-category-btn');
+const modal = document.getElementById('product-modal');
+const saveBtn = document.getElementById('save-product');
+const closeModal = document.getElementById('close-modal');
+const categoryModal = document.getElementById('category-modal');
+const saveCategoryBtn = document.getElementById('save-category');
+const closeCategoryModal = document.getElementById('close-category-modal');
+const modalCategorySelect = document.getElementById('modal-category');
+const searchBox = document.getElementById('search-box');
+const categoryListDiv = document.getElementById('category-list');
+const addColorBtn = document.getElementById('add-color-btn');
+const newColorInput = document.getElementById('new-color');
+const colorListDiv = document.getElementById('color-list');
+let colorArray = [];
+let editIndex = null;
+
+function renderColorList(){
+  colorListDiv.innerHTML='';
+  colorArray.forEach((c,i)=>{
+    const span = document.createElement('span');
+    span.textContent=c; span.className='color-btn';
+    span.title='اضغط لحذف اللون';
+    span.onclick=()=>{ colorArray.splice(i,1); renderColorList(); };
+    colorListDiv.appendChild(span);
+  });
+}
+
+function renderCategories(){
+  categoryListDiv.innerHTML='';
+  categories.forEach((c,index)=>{
+    const container = document.createElement('div'); container.className='category-container';
+    const btn = document.createElement('button'); btn.className='category-list-btn'; btn.textContent=c;
+    btn.onclick = ()=> renderProducts('',c);
+    const del = document.createElement('button'); del.textContent='X'; del.className='delete-btn';
+    del.onclick = (e)=>{ e.stopPropagation(); categories.splice(index,1); localStorage.setItem('categories',JSON.stringify(categories)); renderCategories(); renderProducts(); };
+    container.appendChild(btn); container.appendChild(del); categoryListDiv.appendChild(container);
+  });
+  modalCategorySelect.innerHTML='';
+  categories.forEach(cat=>{ const option=document.createElement('option'); option.value=cat; option.textContent=cat; modalCategorySelect.appendChild(option); });
+}
+
+function renderProducts(filter='', category=''){
+  productGrid.innerHTML='';
+  products.filter(p=>p.name && p.name.toLowerCase().includes(filter.toLowerCase()))
+          .filter(p=>!category || p.category===category)
+          .forEach((p,index)=>{
+    const div = document.createElement('div'); div.className='product';
+    div.innerHTML=`<img src="${p.img}" alt="${p.name}"><div class="title">${p.name}</div>${p.priceBefore ? '<div class="price-before">'+p.priceBefore+'</div>':''}<div class="price">${p.price}</div><div class="description" style="display:none;">${p.description}</div>`;
+
+    const del = document.createElement('button'); del.textContent='حذف'; del.className='delete-btn';
+    del.onclick=(e)=>{ e.stopPropagation(); products.splice(index,1); localStorage.setItem('products',JSON.stringify(products)); renderProducts(); };
+    div.appendChild(del);
+
+    const edit = document.createElement('button'); edit.textContent='تعديل'; edit.className='edit-btn';
+    edit.onclick=(e)=>{
+      e.stopPropagation(); editIndex=index; document.getElementById('modal-title').textContent='تعديل المنتج';
+      const prod=products[index];
+      document.getElementById('modal-name').value=prod.name;
+      document.getElementById('modal-price-before').value=prod.priceBefore;
+      document.getElementById('modal-price').value=prod.price;
+      document.getElementById('modal-description').value=prod.description;
+      document.getElementById('modal-category').value=prod.category||'';
+      colorArray=prod.colors?prod.colors.split(','):[]; renderColorList(); modal.style.display='flex';
+    };
+    div.appendChild(edit);
+
+    // ألوان المنتج
+    const colorsDiv = document.createElement('div'); colorsDiv.className='colors'; colorsDiv.style.display='flex'; colorsDiv.style.gap='5px'; colorsDiv.style.flexWrap='wrap';
+    let selectedColor = '';
+    if(p.colors){
+      p.colors.split(',').forEach(c=>{
+        const span = document.createElement('span'); span.textContent=c.trim(); span.className='color-btn';
+        span.onclick=(e)=>{
+          e.stopPropagation();
+          selectedColor = c.trim();
+          colorsDiv.querySelectorAll('.color-btn').forEach(s=>s.style.border='none');
+          span.style.border='2px solid #ffcc00';
+        };
+        colorsDiv.appendChild(span);
+      });
+      div.appendChild(colorsDiv);
+    }
+
+    // أزرار التفاصيل والطلب
+    const actionDiv = document.createElement('div'); actionDiv.style.marginTop='5px'; actionDiv.style.display='flex'; actionDiv.style.gap='5px';
+    const btnDetails = document.createElement('button'); btnDetails.textContent='تفاصيل'; btnDetails.style.background='#444'; btnDetails.style.color='#ffcc00'; btnDetails.style.border='none'; btnDetails.style.borderRadius='5px'; btnDetails.style.cursor='pointer';
+    btnDetails.onclick=(e)=>{
+      e.stopPropagation();
+      const descDiv = div.querySelector('.description');
+      descDiv.style.display = descDiv.style.display==='none'?'block':'none';
+    };
+    const btnOrder = document.createElement('button'); btnOrder.textContent='طلب'; btnOrder.style.background='#ffcc00'; btnOrder.style.color='#000'; btnOrder.style.border='none'; btnOrder.style.borderRadius='5px'; btnOrder.style.cursor='pointer';
+    btnOrder.onclick=(e)=>{
+      e.stopPropagation();
+      let colorChoice = selectedColor || (p.colors ? p.colors.split(',')[0] : '');
+      const messageOrder = `مرحبا، أريد طلب المنتج: ${p.name}\nالسعر: ${p.price}\n${colorChoice ? 'اللون: '+colorChoice : ''}`;
+      window.open(`https://wa.me/201122831032?text=${encodeURIComponent(messageOrder)}`, '_blank');
+    };
+    actionDiv.appendChild(btnDetails); actionDiv.appendChild(btnOrder);
+    div.appendChild(actionDiv);
+
+    productGrid.appendChild(div);
+  });
+}
+
+function showStore(isOwner, username, password){
+  loginPage.style.display='none';
+  localStorage.setItem('autoLogin', JSON.stringify({username,password,isOwner}));
+  if(isOwner){ addBtn.style.display='block'; addCategoryBtn.style.display='block'; }
+  renderCategories(); renderProducts();
+}
+
+window.onload=()=>{
+  const auto=JSON.parse(localStorage.getItem('autoLogin'));
+  if(auto){ showStore(auto.isOwner, auto.username, auto.password); }
+  renderCategories(); renderProducts();
+}
+
+loginBtn.addEventListener('click',()=>{
+  const username=document.getElementById('username').value.trim();
+  const password=document.getElementById('password').value.trim();
+  if(!username || !password) return alert('اكتب البيانات كاملة');
+  const user = users.find(u=>u.username===username && u.password===password);
+  if(user) showStore(user.isOwner, username, password);
+  else alert('اسم المستخدم أو كلمة السر خاطئة');
+});
+
+registerLink.addEventListener('click',()=>{
+  const username=prompt('ادخل اسم المستخدم الجديد:').trim();
+  const password=prompt('ادخل كلمة السر الجديدة:').trim();
+  if(!username || !password) return alert('لا يمكن ترك البيانات فارغة');
+  users.push({username,password,isOwner:true});
+  localStorage.setItem('users',JSON.stringify(users));
+  document.getElementById('username').value=username;
+  document.getElementById('password').value=password;
+  alert('تم إنشاء الحساب بنجاح وسيتم تسجيل الدخول الآن');
+  showStore(true,username,password);
+});
+
+addBtn.addEventListener('click',()=>{ editIndex=null; document.getElementById('modal-title').textContent='إضافة منتج جديد'; colorArray=[]; renderColorList(); modal.style.display='flex'; });
+closeModal.addEventListener('click',()=>{ modal.style.display='none'; });
+addCategoryBtn.addEventListener('click',()=>{ categoryModal.style.display='flex'; });
+closeCategoryModal.addEventListener('click',()=>{ categoryModal.style.display='none'; });
+
+saveCategoryBtn.addEventListener('click',()=>{
+  const newCat=document.getElementById('new-category').value.trim();
+  if(newCat && !categories.includes(newCat)){ categories.push(newCat); localStorage.setItem('categories',JSON.stringify(categories)); renderCategories(); }
+  categoryModal.style.display='none'; document.getElementById('new-category').value='';
+});
+
+addColorBtn.addEventListener('click',()=>{
+  const color=newColorInput.value.trim(); if(color && !colorArray.includes(color)){ colorArray.push(color); newColorInput.value=''; renderColorList(); }
+});
+
+saveBtn.addEventListener('click',()=>{
+  const name=document.getElementById('modal-name').value.trim();
+  const priceBefore=document.getElementById('modal-price-before').value.trim();
+  const price=document.getElementById('modal-price').value.trim();
+  const file=document.getElementById('modal-img-file').files[0];
+  const description=document.getElementById('modal-description').value.trim();
+  const category=document.getElementById('modal-category').value;
+  if(!name || !price) return alert('اكتب اسم وسعر المنتج');
+
+  function addProduct(imgData){
+    const product={name, price, priceBefore, img: imgData||'https://via.placeholder.com/180', description, colors: colorArray.join(','), category};
+    if(editIndex!==null){ products[editIndex]=product; } else { products.push(product); }
+    localStorage.setItem('products',JSON.stringify(products)); renderProducts(); renderCategories();
+    modal.style.display='none'; document.getElementById('modal-name').value=''; document.getElementById('modal-price-before').value=''; document.getElementById('modal-price').value=''; document.getElementById('modal-img-file').value=''; document.getElementById('modal-description').value=''; colorArray=[]; renderColorList(); editIndex=null;
+  }
+
+  if(file){ const reader=new FileReader(); reader.onload=(e)=>{ addProduct(e.target.result); }; reader.readAsDataURL(file); }
+  else{ addProduct(); }
+});
+
+searchBox.addEventListener('input',()=>{ renderProducts(searchBox.value); });
+</script>
+
+</body>
+</html>
